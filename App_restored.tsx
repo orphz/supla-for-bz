@@ -12,23 +12,6 @@ import DonationModal from './components/DonationModal';
 import Footer from './components/Footer';
 import { UploadIcon } from './components/icons';
 
-// Remove inline border/outline/box-shadow/border-radius styles from SVG strings so
-// exported images don't contain focus rings or container borders captured from
-// the live DOM / utility classes.
-const sanitizeSvgString = (svg: string) => {
-    if (!svg) return svg;
-    // Remove CSS declarations for borders, outlines, box-shadow and border-radius
-    try {
-        svg = svg.replace(/(?:\b(?:border(?:-[^:;\"]*)*|outline(?:-[^:;\"]*)*|box-shadow|border-radius)\b)\s*:\s*[^;\"']+;?/gi, '');
-        // Remove any empty style attributes that may remain
-        svg = svg.replace(/style\s*=\s*"\s*"/gi, '');
-        // Trim excessive whitespace
-        return svg;
-    } catch (e) {
-        return svg;
-    }
-};
-
 const App: React.FC = () => {
     const [measurements, setMeasurements] = useState<Measurement[]>([]);
     const [weighting, setWeighting] = useState<WeightingType>('Z');
@@ -210,28 +193,10 @@ const App: React.FC = () => {
             
             if (format === 'png') {
                 dataUrl = await toPng(chartRef.current, options);
-                saveAs(dataUrl, `chart.png`);
             } else {
-                // toSvg may return a data URL or a raw SVG string. Normalize and sanitize.
-                let svgString = await toSvg(chartRef.current, options);
-                if (svgString.startsWith('data:')) {
-                    const commaIdx = svgString.indexOf(',');
-                    svgString = decodeURIComponent(svgString.slice(commaIdx + 1));
-                }
-                if (!svgString.trim().startsWith('<')) {
-                    try {
-                        const decoded = decodeURIComponent(svgString);
-                        if (decoded.trim().startsWith('<')) svgString = decoded;
-                    } catch (e) {
-                        // ignore
-                    }
-                }
-                svgString = svgString.replace(/^\uFEFF/, '').trimStart();
-                // sanitize inline styles to remove borders/outlines/box-shadows
-                svgString = sanitizeSvgString(svgString);
-                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                saveAs(svgBlob, `chart.svg`);
+                dataUrl = await toSvg(chartRef.current, options);
             }
+            saveAs(dataUrl, `chart.${format}`);
         } catch (error) {
             console.error('Export failed:', error);
             setError('Failed to export image.');
