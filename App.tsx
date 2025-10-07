@@ -275,7 +275,6 @@ const App: React.FC = () => {
                             chartRef.current.style.resize = prevResizeLocal;
                             chartRef.current.style.overflow = prevOverflowLocal;
                         }
-                        }
                     } catch (e) {
                         console.error(`Failed to export ${sanitizedName}.${format}`, e);
                         setError(`Failed to export ${sanitizedName}. Skipping.`);
