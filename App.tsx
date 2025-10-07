@@ -154,7 +154,14 @@ const App: React.FC = () => {
         if (!chartRef.current) return;
         setIsLoading(true);
         setLoadingMessage(`Exporting to ${format.toUpperCase()}...`);
+        let prevResize: string | null = null;
+        let prevOverflow: string | null = null;
         try {
+            // Temporarily hide the resize handle / resize affordance so it doesn't appear in the export
+            prevResize = chartRef.current.style.resize;
+            prevOverflow = chartRef.current.style.overflow;
+            chartRef.current.style.resize = 'none';
+            chartRef.current.style.overflow = 'hidden';
             let dataUrl;
             const options = { quality: 0.95, backgroundColor: chartSettings.backgroundColor };
             
@@ -168,6 +175,11 @@ const App: React.FC = () => {
             console.error('Export failed:', error);
             setError('Failed to export image.');
         } finally {
+            // Restore resize / overflow
+            if (chartRef.current) {
+                chartRef.current.style.resize = prevResize ?? '';
+                chartRef.current.style.overflow = prevOverflow ?? '';
+            }
             setIsLoading(false);
             setLoadingMessage('');
         }
@@ -195,36 +207,41 @@ const App: React.FC = () => {
                 if (chartRef.current) {
                     try {
                         const options = { quality: 0.95, backgroundColor: chartSettings.backgroundColor };
-                        if (format === 'png') {
-                            // toPng returns a data URL. Instead of splitting base64 (which may fail
-                            // if the data URL is malformed), fetch it and store the resulting
-                            // ArrayBuffer/Blob in the ZIP. Retry once on transient failures.
-                            let attempt = 0;
-                            const maxAttempts = 2;
-                            let ok = false;
-                            while (attempt < maxAttempts && !ok) {
-                                attempt++;
-                                try {
-                                    const dataUrl = await toPng(chartRef.current, options);
-                                    const resp = await fetch(dataUrl);
-                                    if (!resp.ok) throw new Error(`Failed to fetch data URL: ${resp.status}`);
-                                    const ab = await resp.arrayBuffer();
-                                    zip.file(`${sanitizedName}.png`, ab);
-                                    ok = true;
-                                } catch (err) {
-                                    console.warn(`Attempt ${attempt} failed to export ${sanitizedName}.png`, err);
-                                    if (attempt < maxAttempts) {
-                                        // small delay before retry
-                                        await new Promise(r => setTimeout(r, 250));
-                                    } else {
-                                        console.error(`Failed to export ${sanitizedName}.png after ${maxAttempts} attempts`, err);
-                                        setError(`Failed to export ${sanitizedName}. Skipping.`);
+                        // Hide resize affordance before export
+                        const prevResizeLocal = chartRef.current.style.resize;
+                        const prevOverflowLocal = chartRef.current.style.overflow;
+                        chartRef.current.style.resize = 'none';
+                        chartRef.current.style.overflow = 'hidden';
+                        try {
+                            if (format === 'png') {
+                                // toPng returns a data URL. Instead of splitting base64 (which may fail
+                                // if the data URL is malformed), fetch it and store the resulting
+                                // ArrayBuffer/Blob in the ZIP. Retry once on transient failures.
+                                let attempt = 0;
+                                const maxAttempts = 2;
+                                let ok = false;
+                                while (attempt < maxAttempts && !ok) {
+                                    attempt++;
+                                    try {
+                                        const dataUrl = await toPng(chartRef.current, options);
+                                        const resp = await fetch(dataUrl);
+                                        if (!resp.ok) throw new Error(`Failed to fetch data URL: ${resp.status}`);
+                                        const ab = await resp.arrayBuffer();
+                                        zip.file(`${sanitizedName}.png`, ab);
+                                        ok = true;
+                                    } catch (err) {
+                                        console.warn(`Attempt ${attempt} failed to export ${sanitizedName}.png`, err);
+                                        if (attempt < maxAttempts) {
+                                            // small delay before retry
+                                            await new Promise(r => setTimeout(r, 250));
+                                        } else {
+                                            console.error(`Failed to export ${sanitizedName}.png after ${maxAttempts} attempts`, err);
+                                            setError(`Failed to export ${sanitizedName}. Skipping.`);
+                                        }
                                     }
                                 }
-                            }
-                        } else {
-                            // toSvg returns an SVG string (not a data URL). Add it as text to the zip.
-                            try {
+                            } else {
+                                // toSvg returns an SVG string (not a data URL). Add it as text to the zip.
                                 let svgString = await toSvg(chartRef.current, options);
                                 // Some environments may return a data URL (data:image/svg+xml;utf8,<svg...>)
                                 // or a percent-encoded string. Normalize all cases to a raw SVG string.
@@ -249,10 +266,15 @@ const App: React.FC = () => {
                                 // Create a Blob to ensure proper UTF-8 encoding when added to the ZIP
                                 const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
                                 zip.file(`${sanitizedName}.svg`, svgBlob);
-                            } catch (err) {
-                                console.error(`Failed to export ${sanitizedName}.svg`, err);
-                                setError(`Failed to export ${sanitizedName}. Skipping.`);
                             }
+                        } catch (err) {
+                            console.error(`Failed to export ${sanitizedName}.${format}`, err);
+                            setError(`Failed to export ${sanitizedName}. Skipping.`);
+                        } finally {
+                            // Restore resize styles after export
+                            chartRef.current.style.resize = prevResizeLocal;
+                            chartRef.current.style.overflow = prevOverflowLocal;
+                        }
                         }
                     } catch (e) {
                         console.error(`Failed to export ${sanitizedName}.${format}`, e);
