@@ -190,13 +190,60 @@ const App: React.FC = () => {
             }
             let dataUrl;
             const options = { quality: 0.95, backgroundColor: chartSettings.backgroundColor };
-            
-            if (format === 'png') {
-                dataUrl = await toPng(chartRef.current, options);
-            } else {
-                dataUrl = await toSvg(chartRef.current, options);
+            // Use a cloned, cleaned node for export so surrounding borders/outlines don't get captured
+            const createCleanClone = (orig: HTMLElement) => {
+                const clone = orig.cloneNode(true) as HTMLElement;
+                // preserve size
+                clone.style.width = `${orig.offsetWidth}px`;
+                clone.style.height = `${orig.offsetHeight}px`;
+                clone.style.boxSizing = 'border-box';
+                clone.style.position = 'absolute';
+                clone.style.left = '-9999px';
+                clone.style.top = '0px';
+                clone.style.margin = '0';
+                clone.style.backgroundColor = chartSettings.backgroundColor;
+                // remove borders/outlines/box-shadows on clone and all descendants
+                try {
+                    const all = clone.querySelectorAll('*');
+                    all.forEach(el => {
+                        const he = el as HTMLElement;
+                        he.style.outline = 'none';
+                        he.style.boxShadow = 'none';
+                        he.style.border = 'none';
+                    });
+                    // also remove on root
+                    clone.style.outline = 'none';
+                    clone.style.boxShadow = 'none';
+                    clone.style.border = 'none';
+                } catch (e) {}
+                document.body.appendChild(clone);
+                return clone;
+            };
+
+            const cloneNode = createCleanClone(chartRef.current);
+            try {
+                if (format === 'png') {
+                    const dataUrlLocal = await toPng(cloneNode, options);
+                    // toPng returns data URL
+                    saveAs(dataUrlLocal, `chart.${format}`);
+                } else {
+                    const svgString = await toSvg(cloneNode, options);
+                    // toSvg may return data URL or raw svg; reuse existing normalization
+                    let svgData = svgString;
+                    if (svgData.startsWith('data:')) {
+                        const commaIdx = svgData.indexOf(',');
+                        svgData = decodeURIComponent(svgData.slice(commaIdx + 1));
+                    }
+                    if (!svgData.trim().startsWith('<')) {
+                        try { const decoded = decodeURIComponent(svgData); if (decoded.trim().startsWith('<')) svgData = decoded; } catch (e) {}
+                    }
+                    svgData = svgData.replace(/^ FEFF|^\uFEFF/, '').trimStart();
+                    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                    saveAs(svgBlob, `chart.${format}`);
+                }
+            } finally {
+                try { if (cloneNode && cloneNode.parentNode) cloneNode.parentNode.removeChild(cloneNode); } catch (e) {}
             }
-            saveAs(dataUrl, `chart.${format}`);
         } catch (error) {
             console.error('Export failed:', error);
             setError('Failed to export image.');
@@ -338,59 +385,76 @@ const App: React.FC = () => {
                             chartRef.current.style.outline = 'none';
                         } catch (e) {}
                         try {
-                            if (format === 'png') {
-                                // toPng returns a data URL. Instead of splitting base64 (which may fail
-                                // if the data URL is malformed), fetch it and store the resulting
-                                // ArrayBuffer/Blob in the ZIP. Retry once on transient failures.
-                                let attempt = 0;
-                                const maxAttempts = 2;
-                                let ok = false;
-                                while (attempt < maxAttempts && !ok) {
-                                    attempt++;
-                                    try {
-                                        const dataUrl = await toPng(chartRef.current, options);
-                                        const resp = await fetch(dataUrl);
-                                        if (!resp.ok) throw new Error(`Failed to fetch data URL: ${resp.status}`);
-                                        const ab = await resp.arrayBuffer();
-                                        zip.file(`${sanitizedName}.png`, ab);
-                                        ok = true;
-                                    } catch (err) {
-                                        console.warn(`Attempt ${attempt} failed to export ${sanitizedName}.png`, err);
-                                        if (attempt < maxAttempts) {
-                                            // small delay before retry
-                                            await new Promise(r => setTimeout(r, 250));
-                                        } else {
-                                            console.error(`Failed to export ${sanitizedName}.png after ${maxAttempts} attempts`, err);
-                                            setError(`Failed to export ${sanitizedName}. Skipping.`);
+                            // create a cleaned clone for this export
+                            const clone = ((): HTMLElement | null => {
+                                try {
+                                    const c = chartRef.current!.cloneNode(true) as HTMLElement;
+                                    c.style.width = `${chartRef.current!.offsetWidth}px`;
+                                    c.style.height = `${chartRef.current!.offsetHeight}px`;
+                                    c.style.boxSizing = 'border-box';
+                                    c.style.position = 'absolute';
+                                    c.style.left = '-9999px';
+                                    c.style.top = '0px';
+                                    c.style.margin = '0';
+                                    c.style.backgroundColor = chartSettings.backgroundColor;
+                                    const all = c.querySelectorAll('*');
+                                    all.forEach(el => {
+                                        const he = el as HTMLElement;
+                                        he.style.outline = 'none';
+                                        he.style.boxShadow = 'none';
+                                        he.style.border = 'none';
+                                    });
+                                    c.style.outline = 'none';
+                                    c.style.boxShadow = 'none';
+                                    c.style.border = 'none';
+                                    document.body.appendChild(c);
+                                    return c;
+                                } catch (e) {
+                                    console.warn('Failed to create clone for export', e);
+                                    return null;
+                                }
+                            })();
+                            if (!clone) throw new Error('Failed to create export clone');
+                            try {
+                                if (format === 'png') {
+                                    let attempt = 0;
+                                    const maxAttempts = 2;
+                                    let ok = false;
+                                    while (attempt < maxAttempts && !ok) {
+                                        attempt++;
+                                        try {
+                                            const dataUrl = await toPng(clone, options);
+                                            const resp = await fetch(dataUrl);
+                                            if (!resp.ok) throw new Error(`Failed to fetch data URL: ${resp.status}`);
+                                            const ab = await resp.arrayBuffer();
+                                            zip.file(`${sanitizedName}.png`, ab);
+                                            ok = true;
+                                        } catch (err) {
+                                            console.warn(`Attempt ${attempt} failed to export ${sanitizedName}.png`, err);
+                                            if (attempt < maxAttempts) {
+                                                await new Promise(r => setTimeout(r, 250));
+                                            } else {
+                                                console.error(`Failed to export ${sanitizedName}.png after ${maxAttempts} attempts`, err);
+                                                setError(`Failed to export ${sanitizedName}. Skipping.`);
+                                            }
                                         }
                                     }
-                                }
-                            } else {
-                                // toSvg returns an SVG string (not a data URL). Add it as text to the zip.
-                                let svgString = await toSvg(chartRef.current, options);
-                                // Some environments may return a data URL (data:image/svg+xml;utf8,<svg...>)
-                                // or a percent-encoded string. Normalize all cases to a raw SVG string.
-                                if (svgString.startsWith('data:')) {
-                                    const commaIdx = svgString.indexOf(',');
-                                    svgString = decodeURIComponent(svgString.slice(commaIdx + 1));
-                                }
-                                // If percent-encoded but not data URL
-                                if (!svgString.trim().startsWith('<')) {
-                                    try {
-                                        const decoded = decodeURIComponent(svgString);
-                                        if (decoded.trim().startsWith('<')) svgString = decoded;
-                                    } catch (e) {
-                                        // ignore decode errors
+                                } else {
+                                    let svgString = await toSvg(clone, options);
+                                    if (svgString.startsWith('data:')) {
+                                        const commaIdx = svgString.indexOf(',');
+                                        svgString = decodeURIComponent(svgString.slice(commaIdx + 1));
                                     }
+                                    if (!svgString.trim().startsWith('<')) {
+                                        try { const decoded = decodeURIComponent(svgString); if (decoded.trim().startsWith('<')) svgString = decoded; } catch (e) {}
+                                    }
+                                    svgString = svgString.replace(/^\uFEFF/, '').trimStart();
+                                    if (!svgString.startsWith('<')) throw new Error('SVG content invalid');
+                                    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                                    zip.file(`${sanitizedName}.svg`, svgBlob);
                                 }
-                                // Remove any leading UTF BOM or whitespace
-                                svgString = svgString.replace(/^\uFEFF/, '').trimStart();
-                                if (!svgString.startsWith('<')) {
-                                    throw new Error('SVG content does not start with "<" after normalization');
-                                }
-                                // Create a Blob to ensure proper UTF-8 encoding when added to the ZIP
-                                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                                zip.file(`${sanitizedName}.svg`, svgBlob);
+                            } finally {
+                                try { if (clone.parentNode) clone.parentNode.removeChild(clone); } catch (e) {}
                             }
                         } catch (err) {
                             console.error(`Failed to export ${sanitizedName}.${format}`, err);
