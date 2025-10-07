@@ -185,23 +185,57 @@ const App: React.FC = () => {
         }
     }, [chartSettings.backgroundColor]);
 
-    // Export entire project state (measurements + chart settings + weighting) as a CSV
+    // Export entire project state (measurements + chart settings + weighting) as JSON
     const exportProject = useCallback(() => {
-        const headers = ['type','id','name','originalName','color','originalColor','visible','yAxisStart','yAxisEnd','xAxisLabel','yAxisLabel','backgroundColor','gridColor','textColor','weighting'];
-        const rows: string[][] = [];
-
-        // Project-level row
-        rows.push(['project','', '', '', '', '', '', chartSettings.yAxisStart, chartSettings.yAxisEnd, chartSettings.xAxisLabel, chartSettings.yAxisLabel, chartSettings.backgroundColor, chartSettings.gridColor, chartSettings.textColor, weighting]);
-
-        // Measurements
-        measurements.forEach(m => {
-            rows.push(['measurement', m.id, m.name, m.originalName, m.color, m.originalColor, m.visible ? '1' : '0', '', '', '', '', '', '', '', '']);
-        });
-
-        const csv = [headers.join(';'), ...rows.map(r => r.map(field => String(field).replace(/;/g, ',')).join(';'))].join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        saveAs(blob, 'supla_project_export.csv');
+        const project = {
+            metadata: {
+                exportedAt: new Date().toISOString(),
+                app: 'supla-for-bz',
+                version: '1'
+            },
+            chartSettings,
+            weighting,
+            measurements
+        };
+        const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json;charset=utf-8' });
+        saveAs(blob, 'supla_project_export.json');
     }, [measurements, chartSettings, weighting]);
+
+    // Import project JSON and restore state
+    const importProject = useCallback((file: File | null) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const text = String(reader.result || '');
+                const parsed = JSON.parse(text);
+                if (!parsed || !parsed.measurements || !parsed.chartSettings) {
+                    throw new Error('Invalid project file');
+                }
+                // Basic validation and restore
+                const importedMeasurements: Measurement[] = parsed.measurements.map((m: any, idx: number) => ({
+                    id: m.id || `${Date.now()}-${idx}`,
+                    name: m.name || `Measurement ${idx + 1}`,
+                    originalName: m.originalName || m.name || `Measurement ${idx + 1}`,
+                    data: m.data || {},
+                    visible: !!m.visible,
+                    color: m.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length],
+                    originalColor: m.originalColor || m.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length],
+                }));
+                setChartSettings(parsed.chartSettings);
+                setWeighting(parsed.weighting || 'Z');
+                setMeasurements(importedMeasurements);
+            } catch (err: any) {
+                console.error('Failed to import project:', err);
+                setError('Failed to import project file.');
+            }
+        };
+        reader.onerror = (e) => {
+            console.error('File read error', e);
+            setError('Failed to read project file.');
+        };
+        reader.readAsText(file, 'utf-8');
+    }, [setChartSettings, setWeighting, setMeasurements]);
 
     // Warn on unload if there are unsaved measurements
     useEffect(() => {
@@ -375,6 +409,7 @@ const App: React.FC = () => {
                     onExportTXT={exportToTxt}
                     onExportAll={exportAllAsZip}
                     onExportProject={exportProject}
+                    onImportProject={importProject}
                 />
                 <main className="flex-1 p-4 lg:p-8 flex flex-col">
                     {measurements.length > 0 ? (

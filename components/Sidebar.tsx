@@ -18,13 +18,15 @@ interface SidebarProps {
     onExportTXT: () => void;
     onExportAll: (format: 'png' | 'svg' | 'txt') => void;
     onExportProject: () => void;
+    onImportProject: (file: File | null) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
     measurements, setMeasurements, weighting, onWeightingChange,
     chartSettings, setChartSettings, onFileUploadClick,
     onExportPNG, onExportSVG, onExportTXT, onExportAll
-    , onExportProject
+    , onExportProject, onImportProject
+    
 }) => {
     const [editingMeasurement, setEditingMeasurement] = useState<Measurement | null>(null);
     const [isWeightingInfoOpen, setIsWeightingInfoOpen] = useState(false);
@@ -183,8 +185,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className="grid grid-cols-2 gap-2">
                         <button onClick={onExportPNG} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export PNG</button>
                         <button onClick={onExportSVG} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export SVG</button>
-                        <button onClick={onExportTXT} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export TXT</button>
-                                     <button onClick={onExportProject} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export Project (CSV)</button>
+                            <button onClick={onExportTXT} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export TXT</button>
+                            <button onClick={onExportProject} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export Project (JSON)</button>
+                            <label className="w-full">
+                                <input type="file" accept="application/json" onChange={e => onImportProject(e.target.files ? e.target.files[0] : null)} className="hidden" />
+                                <span className="block text-center cursor-pointer bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Import Project (JSON)</span>
+                            </label>
                         <button onClick={() => setIsExportAllModalOpen(true)} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-2 rounded-md text-sm flex items-center justify-center gap-1">
                            <ExportIcon /> Export All (ZIP)
                         </button>
