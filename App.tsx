@@ -225,7 +225,27 @@ const App: React.FC = () => {
                         } else {
                             // toSvg returns an SVG string (not a data URL). Add it as text to the zip.
                             try {
-                                const svgString = await toSvg(chartRef.current, options);
+                                let svgString = await toSvg(chartRef.current, options);
+                                // Some environments may return a data URL (data:image/svg+xml;utf8,<svg...>)
+                                // or a percent-encoded string. Normalize all cases to a raw SVG string.
+                                if (svgString.startsWith('data:')) {
+                                    const commaIdx = svgString.indexOf(',');
+                                    svgString = decodeURIComponent(svgString.slice(commaIdx + 1));
+                                }
+                                // If percent-encoded but not data URL
+                                if (!svgString.trim().startsWith('<')) {
+                                    try {
+                                        const decoded = decodeURIComponent(svgString);
+                                        if (decoded.trim().startsWith('<')) svgString = decoded;
+                                    } catch (e) {
+                                        // ignore decode errors
+                                    }
+                                }
+                                // Remove any leading UTF BOM or whitespace
+                                svgString = svgString.replace(/^\uFEFF/, '').trimStart();
+                                if (!svgString.startsWith('<')) {
+                                    throw new Error('SVG content does not start with "<" after normalization');
+                                }
                                 zip.file(`${sanitizedName}.svg`, svgString);
                             } catch (err) {
                                 console.error(`Failed to export ${sanitizedName}.svg`, err);
