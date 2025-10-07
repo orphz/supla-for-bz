@@ -178,25 +178,55 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
             </div>
             
-            {/* Fixed Footer for Exports */}
-            {measurements.length > 0 && (
-                <div className="mt-auto flex-shrink-0 pt-6 border-t border-gray-700">
-                    <h3 className="text-lg font-semibold text-gray-300 mb-3">Export Options</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button onClick={onExportPNG} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export PNG</button>
-                        <button onClick={onExportSVG} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export SVG</button>
-                            <button onClick={onExportTXT} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export TXT</button>
-                            <button onClick={onExportProject} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export Project (JSON)</button>
-                            <label className="w-full">
-                                <input type="file" accept="application/json" onChange={e => onImportProject(e.target.files ? e.target.files[0] : null)} className="hidden" />
-                                <span className="block text-center cursor-pointer bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Import Project (JSON)</span>
-                            </label>
-                        <button onClick={() => setIsExportAllModalOpen(true)} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-2 rounded-md text-sm flex items-center justify-center gap-1">
-                           <ExportIcon /> Export All (ZIP)
-                        </button>
-                    </div>
+            {/* Fixed Footer for Exports & Import (always visible) */}
+            <div className="mt-auto flex-shrink-0 pt-6 border-t border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-300 mb-3">Export / Import</h3>
+                <div className="grid grid-cols-2 gap-2">
+                    <button
+                        onClick={onExportPNG}
+                        disabled={measurements.length === 0}
+                        className={`bg-gray-700 p-2 rounded-md text-sm ${measurements.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-600'}`}
+                    >
+                        Export PNG
+                    </button>
+                    <button
+                        onClick={onExportSVG}
+                        disabled={measurements.length === 0}
+                        className={`bg-gray-700 p-2 rounded-md text-sm ${measurements.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-600'}`}
+                    >
+                        Export SVG
+                    </button>
+                    <button
+                        onClick={onExportTXT}
+                        disabled={measurements.length === 0}
+                        className={`bg-gray-700 p-2 rounded-md text-sm ${measurements.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-600'}`}
+                    >
+                        Export TXT
+                    </button>
+                    <button
+                        onClick={onExportProject}
+                        className={`bg-gray-700 p-2 rounded-md text-sm ${measurements.length === 0 ? 'hover:bg-gray-600' : 'hover:bg-gray-600'}`}
+                    >
+                        Export Project (JSON)
+                    </button>
+
+                    <label className="w-full">
+                        <input type="file" accept="application/json" onChange={e => onImportProject(e.target.files ? e.target.files[0] : null)} className="hidden" />
+                        <span className="block text-center cursor-pointer bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Import Project (JSON)</span>
+                    </label>
+
+                    <button
+                        onClick={() => setIsExportAllModalOpen(true)}
+                        disabled={measurements.length === 0}
+                        className={`flex items-center justify-center gap-1 ${measurements.length === 0 ? 'opacity-50 cursor-not-allowed bg-gray-700 p-2 rounded-md text-sm' : 'bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-2 rounded-md text-sm'}`}
+                    >
+                        <ExportIcon /> Export All (ZIP)
+                    </button>
                 </div>
-            )}
+                {measurements.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-2">No measurements loaded — export actions are disabled. Use "Upload CSV File" or "Import Project (JSON)" to load data.</p>
+                )}
+            </div>
             
             {/* Modals */}
             <Modal isOpen={!!editingMeasurement} onClose={() => setEditingMeasurement(null)} title="Edit Measurement">

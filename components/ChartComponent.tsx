@@ -42,13 +42,17 @@ const ChartComponent: React.FC<ChartComponentProps> = ({ data, measurements, set
                     stroke={settings.gridColor}
                     interval={0}
                 >
-                     <Label value={settings.xAxisLabel} offset={0} position="insideBottom" fill={settings.textColor} />
+                    {settings.showXAxisLabel !== false && (
+                        <Label value={settings.xAxisLabel} offset={0} position="insideBottom" fill={settings.textColor} />
+                    )}
                 </XAxis>
                 <YAxis 
                     tick={{ fill: settings.textColor, fontSize: 12 }}
                     stroke={settings.gridColor}
                 >
-                    <Label value={settings.yAxisLabel} angle={-90} position="insideLeft" style={{ textAnchor: 'middle', fill: settings.textColor }} />
+                    {settings.showYAxisLabel !== false && (
+                        <Label value={settings.yAxisLabel} angle={-90} position="insideLeft" style={{ textAnchor: 'middle', fill: settings.textColor }} />
+                    )}
                 </YAxis>
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(107, 114, 128, 0.3)' }} />
                 <Legend wrapperStyle={{ color: settings.textColor, paddingTop: '10px', paddingLeft:'60px' }} />

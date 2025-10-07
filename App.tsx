@@ -29,6 +29,8 @@ const App: React.FC = () => {
         backgroundColor: '#1f2937', // bg-gray-800
         gridColor: '#4b5563', // bg-gray-600
         textColor: '#d1d5db', // text-gray-300
+        showXAxisLabel: true,
+        showYAxisLabel: true,
     });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -127,10 +129,6 @@ const App: React.FC = () => {
 
     const handleWeightingChange = (newWeighting: WeightingType) => {
         setWeighting(newWeighting);
-        setChartSettings(prev => ({
-            ...prev,
-            yAxisLabel: `Sound Pressure Level (dB${newWeighting})`
-        }));
     };
     
     const exportToTxt = useCallback(() => {

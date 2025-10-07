@@ -24,6 +24,8 @@ export interface ChartSettings {
   backgroundColor: string;
   gridColor: string;
   textColor: string;
+  showXAxisLabel?: boolean;
+  showYAxisLabel?: boolean;
 }
 
 export interface ChartDataPoint {
