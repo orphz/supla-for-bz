@@ -55,6 +55,10 @@ This application is perfectly suited for deployment on GitHub Pages. The process
     -   GitHub will now publish your site. It might take a minute or two.
     -   Once it's live, the URL will be displayed at the top of the Pages settings. It will look like: `https://<YOUR_GITHUB_USERNAME>.github.io/<YOUR_REPOSITORY_NAME>/`
 
+    Repository and author
+
+    This project is published by: https://github.com/orphz/
+
     Automatic deployment using GitHub Actions
 
     This repository includes a GitHub Actions workflow that builds the app and deploys the `dist` folder to GitHub Pages on pushes to `main` or `master`.

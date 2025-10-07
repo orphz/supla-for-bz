@@ -246,7 +246,9 @@ const App: React.FC = () => {
                                 if (!svgString.startsWith('<')) {
                                     throw new Error('SVG content does not start with "<" after normalization');
                                 }
-                                zip.file(`${sanitizedName}.svg`, svgString);
+                                // Create a Blob to ensure proper UTF-8 encoding when added to the ZIP
+                                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                                zip.file(`${sanitizedName}.svg`, svgBlob);
                             } catch (err) {
                                 console.error(`Failed to export ${sanitizedName}.svg`, err);
                                 setError(`Failed to export ${sanitizedName}. Skipping.`);
