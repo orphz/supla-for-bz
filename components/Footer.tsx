@@ -15,7 +15,7 @@ const Footer: React.FC<FooterProps> = ({ onOpenDonationModal }) => {
                 </div>
                 <div className="flex items-center gap-6">
                     <a
-                        href="https://github.com/your-username"
+                        href="https://github.com/orphz/"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 hover:text-cyan-400 transition-colors"
