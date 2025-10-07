@@ -17,12 +17,14 @@ interface SidebarProps {
     onExportSVG: () => void;
     onExportTXT: () => void;
     onExportAll: (format: 'png' | 'svg' | 'txt') => void;
+    onExportProject: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
     measurements, setMeasurements, weighting, onWeightingChange,
     chartSettings, setChartSettings, onFileUploadClick,
     onExportPNG, onExportSVG, onExportTXT, onExportAll
+    , onExportProject
 }) => {
     const [editingMeasurement, setEditingMeasurement] = useState<Measurement | null>(null);
     const [isWeightingInfoOpen, setIsWeightingInfoOpen] = useState(false);
@@ -182,6 +184,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <button onClick={onExportPNG} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export PNG</button>
                         <button onClick={onExportSVG} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export SVG</button>
                         <button onClick={onExportTXT} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export TXT</button>
+                                     <button onClick={onExportProject} className="bg-gray-700 hover:bg-gray-600 p-2 rounded-md text-sm">Export Project (CSV)</button>
                         <button onClick={() => setIsExportAllModalOpen(true)} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-2 rounded-md text-sm flex items-center justify-center gap-1">
                            <ExportIcon /> Export All (ZIP)
                         </button>

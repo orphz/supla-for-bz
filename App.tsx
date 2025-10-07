@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import { toPng, toSvg } from 'html-to-image';
 import JSZip from 'jszip';
@@ -185,6 +185,38 @@ const App: React.FC = () => {
         }
     }, [chartSettings.backgroundColor]);
 
+    // Export entire project state (measurements + chart settings + weighting) as a CSV
+    const exportProject = useCallback(() => {
+        const headers = ['type','id','name','originalName','color','originalColor','visible','yAxisStart','yAxisEnd','xAxisLabel','yAxisLabel','backgroundColor','gridColor','textColor','weighting'];
+        const rows: string[][] = [];
+
+        // Project-level row
+        rows.push(['project','', '', '', '', '', '', chartSettings.yAxisStart, chartSettings.yAxisEnd, chartSettings.xAxisLabel, chartSettings.yAxisLabel, chartSettings.backgroundColor, chartSettings.gridColor, chartSettings.textColor, weighting]);
+
+        // Measurements
+        measurements.forEach(m => {
+            rows.push(['measurement', m.id, m.name, m.originalName, m.color, m.originalColor, m.visible ? '1' : '0', '', '', '', '', '', '', '', '']);
+        });
+
+        const csv = [headers.join(';'), ...rows.map(r => r.map(field => String(field).replace(/;/g, ',')).join(';'))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        saveAs(blob, 'supla_project_export.csv');
+    }, [measurements, chartSettings, weighting]);
+
+    // Warn on unload if there are unsaved measurements
+    useEffect(() => {
+        const handler = (e: BeforeUnloadEvent) => {
+            if (measurements.length > 0) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+            return undefined;
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [measurements.length]);
+
 
     const exportAllAsZip = async (format: 'png' | 'svg' | 'txt') => {
         setIsLoading(true);
@@ -342,6 +374,7 @@ const App: React.FC = () => {
                     onExportSVG={() => exportToImage('svg')}
                     onExportTXT={exportToTxt}
                     onExportAll={exportAllAsZip}
+                    onExportProject={exportProject}
                 />
                 <main className="flex-1 p-4 lg:p-8 flex flex-col">
                     {measurements.length > 0 ? (
