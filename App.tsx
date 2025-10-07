@@ -154,12 +154,26 @@ const App: React.FC = () => {
         setLoadingMessage(`Exporting to ${format.toUpperCase()}...`);
         let prevResize: string | null = null;
         let prevOverflow: string | null = null;
+        // remember and clear focus/outline so focus rings don't appear in the export
+        const prevActive = document.activeElement as HTMLElement | null;
+        let injectedStyle: HTMLStyleElement | null = null;
         try {
             // Temporarily hide the resize handle / resize affordance so it doesn't appear in the export
             prevResize = chartRef.current.style.resize;
             prevOverflow = chartRef.current.style.overflow;
             chartRef.current.style.resize = 'none';
             chartRef.current.style.overflow = 'hidden';
+            // blur active element to avoid browser focus rings in exported images
+            try { prevActive?.blur(); } catch (e) {}
+            // inject a temporary style to neutralize any focus ring / box-shadow coming from utility classes
+            try {
+                injectedStyle = document.createElement('style');
+                injectedStyle.setAttribute('data-export-cleanup', '1');
+                injectedStyle.textContent = `*:focus { outline: none !important; box-shadow: none !important; } .ring, .focus\\:ring, .focus\\:ring-cyan-500, .focus\\:ring-2 { box-shadow: none !important; outline: none !important; }`;
+                document.head.appendChild(injectedStyle);
+            } catch (e) {
+                // ignore
+            }
             let dataUrl;
             const options = { quality: 0.95, backgroundColor: chartSettings.backgroundColor };
             
@@ -178,6 +192,12 @@ const App: React.FC = () => {
                 chartRef.current.style.resize = prevResize ?? '';
                 chartRef.current.style.overflow = prevOverflow ?? '';
             }
+            // remove injected style and restore focus
+            try {
+                if (injectedStyle && injectedStyle.parentNode) injectedStyle.parentNode.removeChild(injectedStyle);
+                // restore focus to previously focused element
+                try { prevActive?.focus(); } catch (e) {}
+            } catch (e) {}
             setIsLoading(false);
             setLoadingMessage('');
         }
@@ -256,6 +276,17 @@ const App: React.FC = () => {
     
         const originalVisibility = measurements.map(m => m.visible);
         const zip = new JSZip();
+
+        // make sure focus rings / utility focus styles don't show up in exported images
+        const prevActiveBatch = document.activeElement as HTMLElement | null;
+        let injectedStyleBatch: HTMLStyleElement | null = null;
+        try { prevActiveBatch?.blur(); } catch (e) {}
+        try {
+            injectedStyleBatch = document.createElement('style');
+            injectedStyleBatch.setAttribute('data-export-cleanup', '1');
+            injectedStyleBatch.textContent = `*:focus { outline: none !important; box-shadow: none !important; } .ring, .focus\\:ring, .focus\\:ring-cyan-500, .focus\\:ring-2 { box-shadow: none !important; outline: none !important; }`;
+            document.head.appendChild(injectedStyleBatch);
+        } catch (e) {}
     
         for (let i = 0; i < measurements.length; i++) {
             const m = measurements[i];
@@ -373,6 +404,11 @@ const App: React.FC = () => {
             console.error('Failed to generate ZIP file', e);
             setError('Failed to generate ZIP file.');
         } finally {
+            // remove injected style and restore previous focus
+            try {
+                if (injectedStyleBatch && injectedStyleBatch.parentNode) injectedStyleBatch.parentNode.removeChild(injectedStyleBatch);
+                try { prevActiveBatch?.focus(); } catch (e) {}
+            } catch (e) {}
             setIsLoading(false);
             setLoadingMessage('');
         }
