@@ -194,15 +194,44 @@ const App: React.FC = () => {
             if (format === 'png' || format === 'svg') {
                 if (chartRef.current) {
                     try {
-                        let dataUrl;
                         const options = { quality: 0.95, backgroundColor: chartSettings.backgroundColor };
                         if (format === 'png') {
-                            dataUrl = await toPng(chartRef.current, options);
+                            // toPng returns a data URL. Instead of splitting base64 (which may fail
+                            // if the data URL is malformed), fetch it and store the resulting
+                            // ArrayBuffer/Blob in the ZIP. Retry once on transient failures.
+                            let attempt = 0;
+                            const maxAttempts = 2;
+                            let ok = false;
+                            while (attempt < maxAttempts && !ok) {
+                                attempt++;
+                                try {
+                                    const dataUrl = await toPng(chartRef.current, options);
+                                    const resp = await fetch(dataUrl);
+                                    if (!resp.ok) throw new Error(`Failed to fetch data URL: ${resp.status}`);
+                                    const ab = await resp.arrayBuffer();
+                                    zip.file(`${sanitizedName}.png`, ab);
+                                    ok = true;
+                                } catch (err) {
+                                    console.warn(`Attempt ${attempt} failed to export ${sanitizedName}.png`, err);
+                                    if (attempt < maxAttempts) {
+                                        // small delay before retry
+                                        await new Promise(r => setTimeout(r, 250));
+                                    } else {
+                                        console.error(`Failed to export ${sanitizedName}.png after ${maxAttempts} attempts`, err);
+                                        setError(`Failed to export ${sanitizedName}. Skipping.`);
+                                    }
+                                }
+                            }
                         } else {
-                            dataUrl = await toSvg(chartRef.current, options);
+                            // toSvg returns an SVG string (not a data URL). Add it as text to the zip.
+                            try {
+                                const svgString = await toSvg(chartRef.current, options);
+                                zip.file(`${sanitizedName}.svg`, svgString);
+                            } catch (err) {
+                                console.error(`Failed to export ${sanitizedName}.svg`, err);
+                                setError(`Failed to export ${sanitizedName}. Skipping.`);
+                            }
                         }
-                        const base64Data = dataUrl.split(',')[1];
-                        zip.file(`${sanitizedName}.${format}`, base64Data, { base64: true });
                     } catch (e) {
                         console.error(`Failed to export ${sanitizedName}.${format}`, e);
                         setError(`Failed to export ${sanitizedName}. Skipping.`);
