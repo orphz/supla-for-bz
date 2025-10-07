@@ -152,8 +152,12 @@ const App: React.FC = () => {
         if (!chartRef.current) return;
         setIsLoading(true);
         setLoadingMessage(`Exporting to ${format.toUpperCase()}...`);
-        let prevResize: string | null = null;
-        let prevOverflow: string | null = null;
+    let prevResize: string | null = null;
+    let prevOverflow: string | null = null;
+    let prevBorder: string | null = null;
+    let prevBorderRadius: string | null = null;
+    let prevBoxShadow: string | null = null;
+    let prevOutline: string | null = null;
         // remember and clear focus/outline so focus rings don't appear in the export
         const prevActive = document.activeElement as HTMLElement | null;
         let injectedStyle: HTMLStyleElement | null = null;
@@ -163,6 +167,16 @@ const App: React.FC = () => {
             prevOverflow = chartRef.current.style.overflow;
             chartRef.current.style.resize = 'none';
             chartRef.current.style.overflow = 'hidden';
+            // temporarily remove border/outline/box-shadow to avoid them appearing in exported images
+            try {
+                prevBorder = chartRef.current.style.border;
+                prevBorderRadius = chartRef.current.style.borderRadius;
+                prevBoxShadow = chartRef.current.style.boxShadow;
+                prevOutline = chartRef.current.style.outline;
+                chartRef.current.style.border = 'none';
+                chartRef.current.style.boxShadow = 'none';
+                chartRef.current.style.outline = 'none';
+            } catch (e) {}
             // blur active element to avoid browser focus rings in exported images
             try { prevActive?.blur(); } catch (e) {}
             // inject a temporary style to neutralize any focus ring / box-shadow coming from utility classes
@@ -191,6 +205,12 @@ const App: React.FC = () => {
             if (chartRef.current) {
                 chartRef.current.style.resize = prevResize ?? '';
                 chartRef.current.style.overflow = prevOverflow ?? '';
+                try {
+                    chartRef.current.style.border = prevBorder ?? '';
+                    chartRef.current.style.borderRadius = prevBorderRadius ?? '';
+                    chartRef.current.style.boxShadow = prevBoxShadow ?? '';
+                    chartRef.current.style.outline = prevOutline ?? '';
+                } catch (e) {}
             }
             // remove injected style and restore focus
             try {
@@ -305,8 +325,18 @@ const App: React.FC = () => {
                         // Hide resize affordance before export
                         const prevResizeLocal = chartRef.current.style.resize;
                         const prevOverflowLocal = chartRef.current.style.overflow;
+                        const prevBorderLocal = chartRef.current.style.border;
+                        const prevBorderRadiusLocal = chartRef.current.style.borderRadius;
+                        const prevBoxShadowLocal = chartRef.current.style.boxShadow;
+                        const prevOutlineLocal = chartRef.current.style.outline;
                         chartRef.current.style.resize = 'none';
                         chartRef.current.style.overflow = 'hidden';
+                        // remove border/outline/box-shadow for batch exports as well
+                        try {
+                            chartRef.current.style.border = 'none';
+                            chartRef.current.style.boxShadow = 'none';
+                            chartRef.current.style.outline = 'none';
+                        } catch (e) {}
                         try {
                             if (format === 'png') {
                                 // toPng returns a data URL. Instead of splitting base64 (which may fail
@@ -369,6 +399,12 @@ const App: React.FC = () => {
                             // Restore resize styles after export
                             chartRef.current.style.resize = prevResizeLocal;
                             chartRef.current.style.overflow = prevOverflowLocal;
+                            try {
+                                chartRef.current.style.border = prevBorderLocal;
+                                chartRef.current.style.borderRadius = prevBorderRadiusLocal;
+                                chartRef.current.style.boxShadow = prevBoxShadowLocal;
+                                chartRef.current.style.outline = prevOutlineLocal;
+                            } catch (e) {}
                         }
                     } catch (e) {
                         console.error(`Failed to export ${sanitizedName}.${format}`, e);
