@@ -1,0 +1,5 @@
+{
+  "name": "SUPLA for BZ - Sound Pressure Level Analyzer",
+  "description": "An advanced web application to upload, visualize, and analyze sound pressure level data from BZ-5503 CSV files. Features customizable charts, frequency weighting (A, C, Z), and powerful export options including PNG, SVG, TXT, and batch ZIP downloads.",
+  "requestFramePermissions": []
+}
